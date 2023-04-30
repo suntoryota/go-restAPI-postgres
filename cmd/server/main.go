@@ -1,18 +1,43 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
 
-// Run - is going to be responsible
-// for the instantiation and startup
-// of go application
+	log "github.com/sirupsen/logrus"
+	"github.com/suntoryota/go-restAPI-postgres/internal/comment"
+	"github.com/suntoryota/go-restAPI-postgres/internal/database"
+	transportHttp "github.com/suntoryota/go-restAPI-postgres/internal/transport/http"
+)
+
+// Run - sets up our application
 func Run() error {
-	fmt.Println("starting up our application")
+	log.SetFormatter(&log.JSONFormatter{})
+	log.Info("Setting Up Our APP")
+
+	var err error
+	db, err := database.NewDatabase()
+	if err != nil {
+		log.Error("failed to setup connection to the database")
+		return err
+	}
+	if err = db.MigrateDB(); err != nil {
+		fmt.Println("failed to setup database")
+		return err
+	}
+
+	commentService := comment.NewService(db)
+
+	httpHandler := transportHttp.NewHandler(commentService)
+	if err := httpHandler.Serve(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func main() {
-	fmt.Println("Go Rest API")
 	if err := Run(); err != nil {
-		fmt.Println(err)
+		log.Error(err)
+		log.Fatal("Error starting up our REST API")
 	}
 }
